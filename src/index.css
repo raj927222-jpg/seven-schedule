@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-page: #FAF9F5;
+    --text-primary: #111111;
+  }
+
+  body {
+    background-color: #FAF9F5;
+    color: #111111;
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+}
+
+.font-serif-display {
+  font-family: 'Newsreader', 'Fraunces', Georgia, serif;
+}
+
+.font-heading {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+/* Glassmorphism Cards for Mindly aesthetic */
+.glass-card {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.glass-pill {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+}
+
+/* Floating Animations */
+@keyframes float-gentle-1 {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(0.6deg);
+  }
+}
+
+@keyframes float-gentle-2 {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(7px) rotate(-0.6deg);
+  }
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-float-1 {
+  animation: float-gentle-1 6s ease-in-out infinite;
+}
+
+.animate-float-2 {
+  animation: float-gentle-2 7s ease-in-out infinite;
+}
+
+.animate-spin-slow {
+  animation: spin-slow 24s linear infinite;
+}
+
+/* Custom subtle scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #FAF9F5;
+}
+::-webkit-scrollbar-thumb {
+  background: #E5E5DF;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #C4C4BC;
+}

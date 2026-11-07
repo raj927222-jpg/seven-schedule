@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Seven Schedule | Web Development, Motion Graphics & Graphic Design</title>
+    <meta name="description" content="Raj and Vaibhav are two independent freelance creators in Surat, Gujarat offering modern websites, 3D motion graphics, and graphic design." />
+    <meta property="og:title" content="Seven Schedule | Freelance Web, Motion & Design" />
+    <meta property="og:description" content="Direct collaboration with freelancers Raj and Vaibhav for powerful websites, cinematic motion graphics, and impactful visual design." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23111111'/%3E%3Cpath d='M9 9h14l-8 14h-3l6-11H9V9z' fill='%23ffffff'/%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Inter:wght@300;400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Syne:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+      // Per AI Studio environment constraints: HMR is disabled, ignore WebSocket errors
+      (function() {
+        function isViteWsError(val) {
+          if (!val) return false;
+          var str = String(val.stack || val.message || val);
+          return (
+            str.includes('WebSocket') ||
+            str.includes('@vite/client') ||
+            str.includes('vite:ws') ||
+            str.includes('closed without opened')
+          );
+        }
+
+        window.addEventListener('unhandledrejection', function(event) {
+          if (isViteWsError(event?.reason)) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+          }
+        }, true);
+
+        window.addEventListener('error', function(event) {
+          if (
+            isViteWsError(event?.error) ||
+            isViteWsError(event?.message) ||
+            isViteWsError(event?.filename)
+          ) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+          }
+        }, true);
+      })();
+    </script>
+  </head>
+  <body class="bg-white text-[#111111] antialiased selection:bg-[#3F5E4D] selection:text-white">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

@@ -1,0 +1,6 @@
+{
+  "name": "Seven Schedule — Digital Creative Agency",
+  "description": "Seven Schedule creates modern websites, premium motion graphics, and professional graphic design for businesses, creators, and brands.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
