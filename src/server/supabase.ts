@@ -1,5 +1,6 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { ProjectRequest, PortfolioProject, ProjectUpdate } from './db.ts';
+import { createClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { ProjectRequest, PortfolioProject, ProjectUpdate } from './db.ts';
 
 // Supabase configuration provided by Raj (Seven Schedule)
 export const SUPABASE_URL = process.env.SUPABASE_URL || 'https://oossnkdnxvhqbrhfevjb.supabase.co';

@@ -17,6 +17,7 @@ import { ClientDashboardModal } from './components/ClientDashboardModal.tsx';
 import { AdminDashboardModal } from './components/AdminDashboardModal.tsx';
 import { LegalModals } from './components/LegalModals.tsx';
 import { PortfolioProject, AgencyStats, AgencySettings, ServiceType } from './types/index.ts';
+import { safeFetchJson, getClientPortfolio, getClientRequests, getClientSettings, calculateAgencyStats } from './utils/api.ts';
 
 export default function App() {
   // App Data
@@ -41,27 +42,33 @@ export default function App() {
   const fetchData = useCallback(async () => {
     try {
       // 1. Fetch Portfolio
-      const projRes = await fetch('/api/projects');
-      if (projRes.ok) {
-        const data = await projRes.json();
-        setProjects(data);
+      const projRes = await safeFetchJson<PortfolioProject[]>('/api/projects');
+      if (projRes.ok && Array.isArray(projRes.data) && projRes.data.length > 0) {
+        setProjects(projRes.data);
+      } else {
+        setProjects(getClientPortfolio());
       }
 
       // 2. Fetch Calculated Statistics
-      const statsRes = await fetch('/api/stats');
-      if (statsRes.ok) {
-        const statsData = await statsRes.json();
-        setStats(statsData);
+      const statsRes = await safeFetchJson<AgencyStats>('/api/stats');
+      if (statsRes.ok && statsRes.data) {
+        setStats(statsRes.data);
+      } else {
+        setStats(calculateAgencyStats(getClientRequests(), getClientPortfolio()));
       }
 
       // 3. Fetch Settings
-      const setRes = await fetch('/api/settings');
-      if (setRes.ok) {
-        const setData = await setRes.json();
-        setSettings(setData);
+      const setRes = await safeFetchJson<AgencySettings>('/api/settings');
+      if (setRes.ok && setRes.data) {
+        setSettings(setRes.data);
+      } else {
+        setSettings(getClientSettings());
       }
     } catch (err) {
       console.error('Error fetching studio data:', err);
+      setProjects(getClientPortfolio());
+      setStats(calculateAgencyStats(getClientRequests(), getClientPortfolio()));
+      setSettings(getClientSettings());
     } finally {
       setLoadingProjects(false);
       setLoadingStats(false);

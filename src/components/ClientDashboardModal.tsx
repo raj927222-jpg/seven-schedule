@@ -16,6 +16,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { ProjectRequest, ProjectUpdate } from '../types/index.ts';
+import { safeFetchJson, getClientRequests } from '../utils/api.ts';
 
 interface ClientDashboardModalProps {
   isOpen: boolean;
@@ -56,14 +57,35 @@ export const ClientDashboardModal: React.FC<ClientDashboardModalProps> = ({
 
     try {
       const url = `/api/requests/track?token_or_mobile=${encodeURIComponent(query)}`;
-      const res = await fetch(url);
-      const data = await res.json();
+      const res = await safeFetchJson<any>(url);
 
-      if (!res.ok) {
-        throw new Error(data.error || 'No project request found for this mobile number.');
+      let requestsList: any[] = [];
+      if (res.ok && res.data) {
+        requestsList = res.data.all_requests && Array.isArray(res.data.all_requests) ? res.data.all_requests : [res.data];
+      } else {
+        // Fallback: search client storage and demo requests
+        const localList = getClientRequests();
+        const cleanQueryDigits = query.replace(/\D/g, '');
+        const matched = localList.filter(r => {
+          if (r.access_token.toLowerCase() === query.toLowerCase() ||
+              r.request_number.toLowerCase() === query.toLowerCase()) {
+            return true;
+          }
+          if (cleanQueryDigits.length >= 4) {
+            const reqDigits = r.client_mobile.replace(/\D/g, '');
+            return reqDigits.includes(cleanQueryDigits) || cleanQueryDigits.includes(reqDigits);
+          }
+          return false;
+        });
+        if (matched.length > 0) {
+          requestsList = matched;
+        }
       }
 
-      const requestsList = data.all_requests && Array.isArray(data.all_requests) ? data.all_requests : [data];
+      if (requestsList.length === 0) {
+        throw new Error('No project request found for this mobile number or tracking key.');
+      }
+
       setAllClientRequests(requestsList);
       setSelectedRequestIndex(0);
 

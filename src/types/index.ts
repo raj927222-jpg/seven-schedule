@@ -97,5 +97,5 @@ export interface AuthUser {
   email: string;
   full_name: string;
   role: 'partner' | 'client';
-  partner_name?: 'Raj' | 'Vaibhav';
+  partner_name?: 'Raj' | 'Vaibhav' | 'Raj & Vaibhav';
 }

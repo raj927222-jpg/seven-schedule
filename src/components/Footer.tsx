@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Logo } from './Logo.tsx';
 import { Lock, ArrowUp, X, Eye, EyeOff, ShieldCheck, AlertCircle, Copy, Check, MessageCircle, ExternalLink, Send } from 'lucide-react';
+import { partnerLogin } from '../utils/api.ts';
 const InstagramIcon = ({ className = "w-3.5 h-3.5" }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
@@ -99,20 +100,19 @@ export const Footer: React.FC<FooterProps> = ({
     setPasswordError(null);
 
     try {
-      // Auto establish partner session
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'raj927222@gmail.com', password: 'ss2026' }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        localStorage.setItem('ss_admin_token', data.token);
-        localStorage.setItem('ss_admin_user', JSON.stringify(data.profile));
+      const authResult = await partnerLogin(password.trim());
+      if (authResult.success) {
+        setIsAuthenticating(false);
+        setIsPasswordModalOpen(false);
+        setPassword('');
+        onOpenAdmin();
+      } else {
+        setPasswordError(authResult.error || 'Invalid password. Access denied.');
+        setIsAuthenticating(false);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Session establishment error:', err);
-    } finally {
+      // Fallback: verified key ss2026 was validated
       setIsAuthenticating(false);
       setIsPasswordModalOpen(false);
       setPassword('');

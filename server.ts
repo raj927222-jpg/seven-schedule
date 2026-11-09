@@ -1,6 +1,7 @@
 process.env.DISABLE_HMR = 'true';
 
-import express, { Request, Response, NextFunction } from 'express';
+import express from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import http from 'node:http';
 import path from 'node:path';
 import fs from 'node:fs';
