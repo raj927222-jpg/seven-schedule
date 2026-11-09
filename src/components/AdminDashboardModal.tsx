@@ -22,7 +22,9 @@ import {
   Database,
   Copy,
   RefreshCw,
-  AlertTriangle
+  AlertTriangle,
+  Upload,
+  Image as ImageIcon
 } from 'lucide-react';
 import { ProjectRequest, PortfolioProject, ServiceType, ProjectStatus, ProjectUpdate, ProjectNote, AgencySettings } from '../types/index.ts';
 import { 
@@ -96,6 +98,58 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
   });
   const [isSavingProject, setIsSavingProject] = useState(false);
   const [projectFormError, setProjectFormError] = useState<string | null>(null);
+  const [useUrlInput, setUseUrlInput] = useState(false);
+
+  const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setProjectFormError('Please select a valid image file (PNG, JPG, WEBP, etc.)');
+      return;
+    }
+
+    setProjectFormError(null);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const rawData = event.target?.result as string;
+      if (!rawData) return;
+
+      const img = new window.Image();
+      img.onload = () => {
+        const maxDim = 1400;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const optimizedUrl = canvas.toDataURL('image/jpeg', 0.85);
+          setProjectForm(prev => ({ ...prev, cover_image_url: optimizedUrl }));
+        } else {
+          setProjectForm(prev => ({ ...prev, cover_image_url: rawData }));
+        }
+      };
+      img.onerror = () => {
+        setProjectForm(prev => ({ ...prev, cover_image_url: rawData }));
+      };
+      img.src = rawData;
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Settings State
   const [settings, setSettings] = useState<AgencySettings | null>(null);
@@ -473,6 +527,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
 
   // Portfolio Management
   const openProjectForm = (proj?: PortfolioProject) => {
+    setUseUrlInput(false);
     if (proj) {
       setEditingProject(proj);
       setProjectForm({
@@ -492,7 +547,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
         title: '',
         category: 'Web Development',
         description: '',
-        cover_image_url: 'https://images.unsplash.com/photo-1542744094-3a31f272c490?auto=format&fit=crop&w=1200&q=80',
+        cover_image_url: '',
         video_url: '',
         live_url: '',
         project_status: 'Completed',
@@ -507,6 +562,12 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
     e.preventDefault();
     setIsSavingProject(true);
     setProjectFormError(null);
+
+    if (!projectForm.cover_image_url) {
+      setProjectFormError('Please upload a cover image from file.');
+      setIsSavingProject(false);
+      return;
+    }
 
     const deliverablesList = projectForm.deliverables
       .split(',')
@@ -1203,14 +1264,94 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                         </div>
 
                         <div>
-                          <label className="block font-semibold uppercase text-[#111111] mb-1">Cover Image URL</label>
-                          <input
-                            type="url"
-                            value={projectForm.cover_image_url}
-                            onChange={(e) => setProjectForm({ ...projectForm, cover_image_url: e.target.value })}
-                            required
-                            className="w-full bg-[#F5F5F5] border border-[#E5E5E5] rounded p-2 text-xs focus:bg-white"
-                          />
+                          <div className="flex items-center justify-between mb-1.5">
+                            <label className="block font-semibold uppercase text-[#111111] text-[11px] tracking-wider">
+                              Cover Image
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => setUseUrlInput(prev => !prev)}
+                              className="text-[11px] text-[#777777] hover:text-[#111111] underline transition-colors cursor-pointer"
+                            >
+                              {useUrlInput ? 'Upload from File instead' : 'Enter Image URL instead'}
+                            </button>
+                          </div>
+
+                          {useUrlInput ? (
+                            <div>
+                              <input
+                                type="url"
+                                value={projectForm.cover_image_url}
+                                onChange={(e) => setProjectForm({ ...projectForm, cover_image_url: e.target.value })}
+                                placeholder="https://images.unsplash.com/..."
+                                required
+                                className="w-full bg-[#F5F5F5] border border-[#E5E5E5] rounded p-2.5 text-xs focus:bg-white focus:border-[#111111] outline-hidden transition-all"
+                              />
+                              <p className="text-[10px] text-[#777777] mt-1">
+                                Paste public image URL (Unsplash, Cloudinary, etc.)
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              {projectForm.cover_image_url ? (
+                                <div className="border border-[#E5E5E5] rounded-xl p-3 bg-[#FAFAFA] flex items-center gap-3">
+                                  <div className="w-20 h-14 rounded-lg overflow-hidden bg-neutral-200 border border-neutral-300 shrink-0 relative">
+                                    <img
+                                      src={projectForm.cover_image_url}
+                                      alt="Cover preview"
+                                      className="w-full h-full object-cover"
+                                      referrerPolicy="no-referrer"
+                                    />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-semibold text-[#111111] truncate">Cover image loaded</p>
+                                    <p className="text-[10px] text-emerald-600 font-medium flex items-center gap-1 mt-0.5">
+                                      <CheckCircle2 className="w-3 h-3 inline" /> Ready for portfolio
+                                    </p>
+                                    <div className="flex items-center gap-3 mt-1.5">
+                                      <label
+                                        htmlFor="cover-image-upload"
+                                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#111111] hover:text-black underline cursor-pointer"
+                                      >
+                                        <Upload className="w-3 h-3" /> Change File
+                                      </label>
+                                      <span className="text-[#E5E5E5]">•</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => setProjectForm({ ...projectForm, cover_image_url: '' })}
+                                        className="text-[11px] text-red-600 hover:text-red-700 underline cursor-pointer"
+                                      >
+                                        Remove
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : (
+                                <label
+                                  htmlFor="cover-image-upload"
+                                  className="border-2 border-dashed border-[#D4D4D4] hover:border-[#111111] rounded-xl p-6 bg-[#FAFAFA] hover:bg-white flex flex-col items-center justify-center text-center cursor-pointer transition-all group"
+                                >
+                                  <div className="w-10 h-10 rounded-full bg-neutral-100 group-hover:bg-[#111111] group-hover:text-white flex items-center justify-center mb-2 text-[#777777] transition-all">
+                                    <Upload className="w-5 h-5" />
+                                  </div>
+                                  <span className="text-xs font-semibold text-[#111111]">
+                                    Upload cover image from file
+                                  </span>
+                                  <span className="text-[10px] text-[#777777] mt-0.5">
+                                    Click to browse from your device (PNG, JPG, WEBP, GIF)
+                                  </span>
+                                </label>
+                              )}
+
+                              <input
+                                id="cover-image-upload"
+                                type="file"
+                                accept="image/*"
+                                onChange={handleImageFileUpload}
+                                className="hidden"
+                              />
+                            </div>
+                          )}
                         </div>
 
                         <div>
