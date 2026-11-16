@@ -582,8 +582,8 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
     try {
       let activeAuthToken = token || localStorage.getItem('ss_admin_token');
 
-      // Auto-reauth with partner key if token is missing
-      if (!activeAuthToken) {
+      // Ensure valid server session token if missing or using offline token
+      if (!activeAuthToken || activeAuthToken.startsWith('partner_verified_') || activeAuthToken.startsWith('partner_session_')) {
         const auth = await partnerLogin('ss2026');
         if (auth.success && auth.token) {
           activeAuthToken = auth.token;
@@ -591,48 +591,58 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
         }
       }
 
-      // Try API first
-      let apiSaved = false;
-      if (editingProject) {
-        const res = await safeFetchJson(`/api/projects/${editingProject.id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${activeAuthToken}`,
-          },
-          body: JSON.stringify(payload),
-        });
-        if (res.ok) apiSaved = true;
-      } else {
-        const res = await safeFetchJson('/api/projects', {
+      const sendSave = async (authTok: string | null) => {
+        if (editingProject) {
+          return safeFetchJson<PortfolioProject>(`/api/projects/${editingProject.id}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${authTok}`,
+            },
+            body: JSON.stringify(payload),
+          });
+        }
+        return safeFetchJson<PortfolioProject>('/api/projects', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${activeAuthToken}`,
+            Authorization: `Bearer ${authTok}`,
           },
           body: JSON.stringify(payload),
         });
-        if (res.ok) apiSaved = true;
+      };
+
+      let res = await sendSave(activeAuthToken);
+
+      // Retry once if server rejected stale/expired session token
+      if (res.status === 401) {
+        const reauth = await partnerLogin('ss2026');
+        if (reauth.success && reauth.token) {
+          activeAuthToken = reauth.token;
+          setToken(reauth.token);
+          res = await sendSave(activeAuthToken);
+        }
       }
 
-      // Sync local portfolio storage as well
+      // Sync local portfolio storage using server record if available
       const currentProjects = getClientPortfolio();
+      const savedFromServer = res.ok && res.data ? res.data : null;
       let updatedPortfolio: PortfolioProject[];
       if (editingProject) {
         updatedPortfolio = currentProjects.map(p =>
           p.id === editingProject.id
-            ? ({ ...p, ...payload, deliverables: deliverablesList } as PortfolioProject)
+            ? (savedFromServer || ({ ...p, ...payload, deliverables: deliverablesList } as PortfolioProject))
             : p
         );
       } else {
-        const newProj: PortfolioProject = {
+        const newProj: PortfolioProject = savedFromServer || ({
           id: 'proj-' + Date.now(),
           ...payload,
           deliverables: deliverablesList,
           is_demo: false,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-        } as PortfolioProject;
+        } as PortfolioProject);
         updatedPortfolio = [newProj, ...currentProjects];
       }
       saveClientPortfolio(updatedPortfolio);
@@ -653,10 +663,32 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
       const currentProjects = getClientPortfolio().filter(p => p.id !== id);
       saveClientPortfolio(currentProjects);
 
-      await safeFetchJson(`/api/projects/${id}`, {
+      let activeAuthToken = token || localStorage.getItem('ss_admin_token');
+      if (!activeAuthToken || activeAuthToken.startsWith('partner_verified_') || activeAuthToken.startsWith('partner_session_')) {
+        const auth = await partnerLogin('ss2026');
+        if (auth.success && auth.token) {
+          activeAuthToken = auth.token;
+          setToken(auth.token);
+        }
+      }
+
+      let res = await safeFetchJson(`/api/projects/${id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${activeAuthToken}` },
       });
+
+      if (res.status === 401) {
+        const reauth = await partnerLogin('ss2026');
+        if (reauth.success && reauth.token) {
+          activeAuthToken = reauth.token;
+          setToken(reauth.token);
+          await safeFetchJson(`/api/projects/${id}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${activeAuthToken}` },
+          });
+        }
+      }
+
       onRefreshData();
     } catch (err) {
       console.error('Error deleting project:', err);

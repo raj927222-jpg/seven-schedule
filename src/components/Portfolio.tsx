@@ -356,17 +356,21 @@ export const Portfolio: React.FC<PortfolioProps> = ({
           <div className="glass-card rounded-3xl p-12 text-center max-w-xl mx-auto shadow-xs">
             <Layers className="w-10 h-10 text-neutral-400 mx-auto mb-3" />
             <h3 className="font-serif-display font-medium text-xl text-[#111111] mb-1">
-              No Projects in this Category
+              {projects.length === 0 ? 'Portfolio Showcase Updating' : 'No Projects in this Category'}
             </h3>
             <p className="text-xs text-neutral-500 mb-6">
-              New project archives are uploaded regularly by the studio. Check another category or request a bespoke commission.
+              {projects.length === 0
+                ? 'Our curated works are being updated directly by the studio. Reach out below to discuss your project or request private case studies.'
+                : 'New project archives are uploaded regularly by the studio. Check another category or request a bespoke commission.'}
             </p>
-            <button
-              onClick={() => setSelectedCategory('All')}
-              className="px-5 py-2.5 bg-[#111111] text-white text-xs font-semibold rounded-full hover:bg-neutral-800 transition-colors cursor-pointer"
-            >
-              Show All Works
-            </button>
+            {projects.length > 0 && (
+              <button
+                onClick={() => setSelectedCategory('All')}
+                className="px-5 py-2.5 bg-[#111111] text-white text-xs font-semibold rounded-full hover:bg-neutral-800 transition-colors cursor-pointer"
+              >
+                Show All Works
+              </button>
+            )}
           </div>
         )}
 

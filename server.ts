@@ -24,7 +24,7 @@ import {
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 // Helper to extract session token from Authorization: Bearer <token>
 function getAuthToken(req: Request): string | undefined {
@@ -74,20 +74,21 @@ app.get('/api/projects', async (req, res) => {
   const category = req.query.category as string | undefined;
 
   // 1. Try fetching live from Supabase portfolio_projects table
+  let sbProjects: any[] | null = null;
   try {
-    const sbProjects = await fetchPortfolioFromSupabase(category);
+    sbProjects = await fetchPortfolioFromSupabase(category);
     if (sbProjects && sbProjects.length > 0) {
       return res.json(sbProjects);
     }
-  } catch (err) {
-    console.warn('[Supabase] Portfolio fetch fallback:', err);
+  } catch {
+    sbProjects = null;
   }
 
   // 2. Fallback to local DB (guarantees fast load & reliability)
   const localProjects = db.getProjects(category);
 
-  // If local projects exist and Supabase table was ready/empty, sync in background
-  if (localProjects.length > 0) {
+  // Only sync local projects if Supabase connected cleanly and returned an empty table
+  if (sbProjects !== null && sbProjects.length === 0 && localProjects.length > 0) {
     for (const p of localProjects) {
       savePortfolioProjectToSupabase(p).catch(() => {});
     }
@@ -114,17 +115,12 @@ app.post('/api/projects', requireAdmin, async (req, res) => {
     is_demo: false,
   });
 
-  // Save to Supabase portfolio_projects table
+  // Save to Supabase portfolio_projects table (best-effort)
   let supabaseResult: { success: boolean; error?: string } = { success: false };
   try {
     supabaseResult = await savePortfolioProjectToSupabase(newProj);
-    if (supabaseResult.success) {
-      console.log(`[Supabase] Portfolio project "${newProj.title}" saved to Supabase!`);
-    } else {
-      console.warn(`[Supabase] Portfolio project notice: ${supabaseResult.error}`);
-    }
   } catch (sbErr: any) {
-    console.warn('[Supabase] Portfolio background save notice:', sbErr.message);
+    supabaseResult = { success: false, error: sbErr?.message };
   }
 
   res.status(201).json({
@@ -139,11 +135,11 @@ app.put('/api/projects/:id', requireAdmin, async (req, res) => {
     return res.status(404).json({ error: 'Project not found.' });
   }
 
-  // Sync updated project to Supabase
+  // Sync updated project to Supabase (best-effort)
   try {
     await savePortfolioProjectToSupabase(updated);
-  } catch (sbErr) {
-    console.warn('[Supabase] Portfolio update notice:', sbErr);
+  } catch {
+    // Fallback saved locally
   }
 
   res.json(updated);
@@ -155,11 +151,11 @@ app.delete('/api/projects/:id', requireAdmin, async (req, res) => {
     return res.status(404).json({ error: 'Project not found.' });
   }
 
-  // Also delete from Supabase
+  // Also delete from Supabase (best-effort)
   try {
     await deletePortfolioProjectFromSupabase(req.params.id);
-  } catch (sbErr) {
-    console.warn('[Supabase] Portfolio delete notice:', sbErr);
+  } catch {
+    // Fallback deleted locally
   }
 
   res.json({ success: true, message: 'Project deleted successfully from local database and Supabase.' });

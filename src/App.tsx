@@ -17,7 +17,7 @@ import { ClientDashboardModal } from './components/ClientDashboardModal.tsx';
 import { AdminDashboardModal } from './components/AdminDashboardModal.tsx';
 import { LegalModals } from './components/LegalModals.tsx';
 import { PortfolioProject, AgencyStats, AgencySettings, ServiceType } from './types/index.ts';
-import { safeFetchJson, getClientPortfolio, getClientRequests, getClientSettings, calculateAgencyStats } from './utils/api.ts';
+import { safeFetchJson, getClientPortfolio, saveClientPortfolio, getClientRequests, getClientSettings, calculateAgencyStats } from './utils/api.ts';
 
 export default function App() {
   // App Data
@@ -43,8 +43,9 @@ export default function App() {
     try {
       // 1. Fetch Portfolio
       const projRes = await safeFetchJson<PortfolioProject[]>('/api/projects');
-      if (projRes.ok && Array.isArray(projRes.data) && projRes.data.length > 0) {
+      if (projRes.ok && Array.isArray(projRes.data)) {
         setProjects(projRes.data);
+        saveClientPortfolio(projRes.data);
       } else {
         setProjects(getClientPortfolio());
       }

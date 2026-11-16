@@ -126,6 +126,30 @@ ON public.portfolio_projects FOR DELETE TO public, anon, authenticated USING (tr
 `;
 
 let supabaseClient: SupabaseClient | null = null;
+let supabaseOfflineUntil = 0;
+const OFFLINE_COOLDOWN_MS = 60_000;
+
+function isNetworkErrorMessage(msg?: string | null): boolean {
+  if (!msg) return false;
+  const lower = msg.toLowerCase();
+  return (
+    lower.includes('fetch failed') ||
+    lower.includes('enotfound') ||
+    lower.includes('econnrefused') ||
+    lower.includes('etimedout') ||
+    lower.includes('econnreset') ||
+    lower.includes('network') ||
+    lower.includes('aborted')
+  );
+}
+
+function isSupabaseTemporarilyOffline(): boolean {
+  return Date.now() < supabaseOfflineUntil;
+}
+
+function markSupabaseOffline(): void {
+  supabaseOfflineUntil = Date.now() + OFFLINE_COOLDOWN_MS;
+}
 
 export function getSupabase(): SupabaseClient {
   if (!supabaseClient) {
@@ -152,20 +176,58 @@ export async function checkSupabaseConnection(): Promise<{
   projectId: string;
   url: string;
 }> {
+  if (isSupabaseTemporarilyOffline()) {
+    return {
+      connected: false,
+      tableReady: false,
+      requestsTableReady: false,
+      portfolioTableReady: false,
+      updatesTableReady: false,
+      error: 'Supabase unreachable from server environment; using local database.',
+      projectId: SUPABASE_PROJECT_ID,
+      url: SUPABASE_URL,
+    };
+  }
+
   try {
     const supabase = getSupabase();
 
-    // 1. Check project_requests
     let requestsTableReady = false;
     let portfolioTableReady = false;
     let updatesTableReady = false;
 
     const resReq = await supabase.from('project_requests').select('id').limit(1);
+    if (resReq.error && isNetworkErrorMessage(resReq.error.message)) {
+      markSupabaseOffline();
+      return {
+        connected: false,
+        tableReady: false,
+        requestsTableReady: false,
+        portfolioTableReady: false,
+        updatesTableReady: false,
+        error: 'Supabase unreachable from server environment; using local database.',
+        projectId: SUPABASE_PROJECT_ID,
+        url: SUPABASE_URL,
+      };
+    }
     if (!resReq.error) {
       requestsTableReady = true;
     }
 
     const resPort = await supabase.from('portfolio_projects').select('id').limit(1);
+    if (resPort.error && isNetworkErrorMessage(resPort.error.message)) {
+      markSupabaseOffline();
+      return {
+        connected: false,
+        tableReady: false,
+        requestsTableReady: false,
+        portfolioTableReady: false,
+        updatesTableReady: false,
+        error: 'Supabase unreachable from server environment; using local database.',
+        projectId: SUPABASE_PROJECT_ID,
+        url: SUPABASE_URL,
+      };
+    }
     if (!resPort.error) {
       portfolioTableReady = true;
     }
@@ -188,13 +250,16 @@ export async function checkSupabaseConnection(): Promise<{
       url: SUPABASE_URL,
     };
   } catch (err: any) {
+    if (isNetworkErrorMessage(err?.message)) {
+      markSupabaseOffline();
+    }
     return {
       connected: false,
       tableReady: false,
       requestsTableReady: false,
       portfolioTableReady: false,
       updatesTableReady: false,
-      error: err.message || 'Unknown network error connecting to Supabase',
+      error: err?.message || 'Unknown network error connecting to Supabase',
       projectId: SUPABASE_PROJECT_ID,
       url: SUPABASE_URL,
     };
@@ -209,6 +274,10 @@ export async function saveRequestToSupabase(record: ProjectRequest): Promise<{
   error?: string;
   data?: any;
 }> {
+  if (isSupabaseTemporarilyOffline()) {
+    return { success: false, error: 'Supabase offline; saved to local database.' };
+  }
+
   try {
     const supabase = getSupabase();
 
@@ -234,14 +303,18 @@ export async function saveRequestToSupabase(record: ProjectRequest): Promise<{
     const { data, error } = await supabase.from('project_requests').upsert(payload).select();
 
     if (error) {
-      console.warn('Supabase request insert warning:', error.message);
+      if (isNetworkErrorMessage(error.message)) {
+        markSupabaseOffline();
+      }
       return { success: false, error: error.message };
     }
 
     return { success: true, data };
   } catch (err: any) {
-    console.error('Supabase save error:', err);
-    return { success: false, error: err.message || 'Error communicating with Supabase' };
+    if (isNetworkErrorMessage(err?.message)) {
+      markSupabaseOffline();
+    }
+    return { success: false, error: err?.message || 'Error communicating with Supabase' };
   }
 }
 
@@ -249,6 +322,7 @@ export async function saveRequestToSupabase(record: ProjectRequest): Promise<{
  * Query project requests from Supabase by Mobile number, Request Number, or Access Token
  */
 export async function findRequestsInSupabase(queryInput: string): Promise<ProjectRequest[]> {
+  if (isSupabaseTemporarilyOffline()) return [];
   try {
     const supabase = getSupabase();
     const cleanQuery = queryInput.trim();
@@ -260,6 +334,11 @@ export async function findRequestsInSupabase(queryInput: string): Promise<Projec
       .select('*')
       .or(`request_number.eq.${cleanQuery},access_token.eq.${cleanQuery}`)
       .order('created_at', { ascending: false });
+
+    if (byTokenOrNumber.error && isNetworkErrorMessage(byTokenOrNumber.error.message)) {
+      markSupabaseOffline();
+      return [];
+    }
 
     if (byTokenOrNumber.data && byTokenOrNumber.data.length > 0) {
       return byTokenOrNumber.data as ProjectRequest[];
@@ -275,6 +354,11 @@ export async function findRequestsInSupabase(queryInput: string): Promise<Projec
         .select('*')
         .eq('client_mobile', cleanQuery)
         .order('created_at', { ascending: false });
+
+      if (byExactMobile.error && isNetworkErrorMessage(byExactMobile.error.message)) {
+        markSupabaseOffline();
+        return [];
+      }
 
       if (byExactMobile.data && byExactMobile.data.length > 0) {
         return byExactMobile.data as ProjectRequest[];
@@ -294,7 +378,9 @@ export async function findRequestsInSupabase(queryInput: string): Promise<Projec
 
     return [];
   } catch (err: any) {
-    console.error('Supabase query error:', err);
+    if (isNetworkErrorMessage(err?.message)) {
+      markSupabaseOffline();
+    }
     return [];
   }
 }
@@ -307,6 +393,7 @@ export async function updateRequestStatusInSupabase(
   status: string,
   assigned_partner?: string
 ): Promise<boolean> {
+  if (isSupabaseTemporarilyOffline()) return false;
   try {
     const supabase = getSupabase();
     const updates: any = {
@@ -323,12 +410,16 @@ export async function updateRequestStatusInSupabase(
       .eq('id', id);
 
     if (error) {
-      console.warn('Supabase status update warning:', error.message);
+      if (isNetworkErrorMessage(error.message)) {
+        markSupabaseOffline();
+      }
       return false;
     }
     return true;
   } catch (err: any) {
-    console.error('Supabase update status error:', err);
+    if (isNetworkErrorMessage(err?.message)) {
+      markSupabaseOffline();
+    }
     return false;
   }
 }
@@ -340,6 +431,9 @@ export async function saveProjectUpdateToSupabase(update: ProjectUpdate): Promis
   success: boolean;
   error?: string;
 }> {
+  if (isSupabaseTemporarilyOffline()) {
+    return { success: false, error: 'Supabase offline; saved to local database.' };
+  }
   try {
     const supabase = getSupabase();
     const payload = {
@@ -353,12 +447,17 @@ export async function saveProjectUpdateToSupabase(update: ProjectUpdate): Promis
 
     const { error } = await supabase.from('project_updates').upsert(payload);
     if (error) {
-      console.warn('Supabase update insertion notice:', error.message);
+      if (isNetworkErrorMessage(error.message)) {
+        markSupabaseOffline();
+      }
       return { success: false, error: error.message };
     }
     return { success: true };
   } catch (err: any) {
-    return { success: false, error: err.message || 'Error saving update to Supabase' };
+    if (isNetworkErrorMessage(err?.message)) {
+      markSupabaseOffline();
+    }
+    return { success: false, error: err?.message || 'Error saving update to Supabase' };
   }
 }
 
@@ -366,6 +465,7 @@ export async function saveProjectUpdateToSupabase(update: ProjectUpdate): Promis
  * Fetch project updates from Supabase for a specific request
  */
 export async function fetchUpdatesForRequestFromSupabase(requestId: string): Promise<ProjectUpdate[]> {
+  if (isSupabaseTemporarilyOffline()) return [];
   try {
     const supabase = getSupabase();
     const { data, error } = await supabase
@@ -374,11 +474,18 @@ export async function fetchUpdatesForRequestFromSupabase(requestId: string): Pro
       .eq('request_id', requestId)
       .order('created_at', { ascending: false });
 
-    if (error || !data) {
+    if (error) {
+      if (isNetworkErrorMessage(error.message)) {
+        markSupabaseOffline();
+      }
       return [];
     }
+    if (!data) return [];
     return data as ProjectUpdate[];
-  } catch (err) {
+  } catch (err: any) {
+    if (isNetworkErrorMessage(err?.message)) {
+      markSupabaseOffline();
+    }
     return [];
   }
 }
@@ -387,6 +494,7 @@ export async function fetchUpdatesForRequestFromSupabase(requestId: string): Pro
  * Fetch all requests from Supabase
  */
 export async function getAllRequestsFromSupabase(): Promise<ProjectRequest[]> {
+  if (isSupabaseTemporarilyOffline()) return [];
   try {
     const supabase = getSupabase();
     const { data, error } = await supabase
@@ -395,13 +503,17 @@ export async function getAllRequestsFromSupabase(): Promise<ProjectRequest[]> {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.warn('Supabase fetch all requests warning:', error.message);
+      if (isNetworkErrorMessage(error.message)) {
+        markSupabaseOffline();
+      }
       return [];
     }
 
     return (data || []) as ProjectRequest[];
-  } catch (err) {
-    console.error('Supabase fetch error:', err);
+  } catch (err: any) {
+    if (isNetworkErrorMessage(err?.message)) {
+      markSupabaseOffline();
+    }
     return [];
   }
 }
@@ -441,6 +553,7 @@ export async function syncLocalRecordsToSupabase(localRecords: ProjectRequest[])
  * Fetch portfolio projects from Supabase
  */
 export async function fetchPortfolioFromSupabase(category?: string): Promise<PortfolioProject[] | null> {
+  if (isSupabaseTemporarilyOffline()) return null;
   try {
     const supabase = getSupabase();
     let query = supabase.from('portfolio_projects').select('*').order('created_at', { ascending: false });
@@ -451,7 +564,9 @@ export async function fetchPortfolioFromSupabase(category?: string): Promise<Por
 
     const { data, error } = await query;
     if (error) {
-      console.warn('[Supabase] Portfolio fetch warning:', error.message);
+      if (isNetworkErrorMessage(error.message)) {
+        markSupabaseOffline();
+      }
       return null;
     }
 
@@ -472,8 +587,10 @@ export async function fetchPortfolioFromSupabase(category?: string): Promise<Por
       created_at: item.created_at,
       updated_at: item.updated_at,
     })) as PortfolioProject[];
-  } catch (err) {
-    console.warn('[Supabase] Portfolio fetch exception:', err);
+  } catch (err: any) {
+    if (isNetworkErrorMessage(err?.message)) {
+      markSupabaseOffline();
+    }
     return null;
   }
 }
@@ -485,6 +602,9 @@ export async function savePortfolioProjectToSupabase(project: PortfolioProject):
   success: boolean;
   error?: string;
 }> {
+  if (isSupabaseTemporarilyOffline()) {
+    return { success: false, error: 'Supabase offline; saved to local database.' };
+  }
   try {
     const supabase = getSupabase();
     const payload = {
@@ -505,13 +625,17 @@ export async function savePortfolioProjectToSupabase(project: PortfolioProject):
 
     const { error } = await supabase.from('portfolio_projects').upsert(payload);
     if (error) {
-      console.warn('[Supabase] Portfolio project save warning:', error.message);
+      if (isNetworkErrorMessage(error.message)) {
+        markSupabaseOffline();
+      }
       return { success: false, error: error.message };
     }
     return { success: true };
   } catch (err: any) {
-    console.error('[Supabase] Portfolio project save error:', err);
-    return { success: false, error: err.message || 'Error communicating with Supabase' };
+    if (isNetworkErrorMessage(err?.message)) {
+      markSupabaseOffline();
+    }
+    return { success: false, error: err?.message || 'Error communicating with Supabase' };
   }
 }
 
@@ -522,16 +646,24 @@ export async function deletePortfolioProjectFromSupabase(id: string): Promise<{
   success: boolean;
   error?: string;
 }> {
+  if (isSupabaseTemporarilyOffline()) {
+    return { success: false, error: 'Supabase offline; deleted from local database.' };
+  }
   try {
     const supabase = getSupabase();
     const { error } = await supabase.from('portfolio_projects').delete().eq('id', id);
     if (error) {
-      console.warn('[Supabase] Portfolio delete warning:', error.message);
+      if (isNetworkErrorMessage(error.message)) {
+        markSupabaseOffline();
+      }
       return { success: false, error: error.message };
     }
     return { success: true };
   } catch (err: any) {
-    return { success: false, error: err.message || 'Error deleting from Supabase' };
+    if (isNetworkErrorMessage(err?.message)) {
+      markSupabaseOffline();
+    }
+    return { success: false, error: err?.message || 'Error deleting from Supabase' };
   }
 }
 
