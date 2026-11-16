@@ -6,9 +6,7 @@ import {
   CheckCircle2, 
   Layers, 
   X, 
-  Film,
-  ChevronLeft,
-  ChevronRight
+  Film
 } from 'lucide-react';
 import { PortfolioProject, ServiceType } from '../types/index.ts';
 
@@ -93,142 +91,6 @@ export const Portfolio: React.FC<PortfolioProps> = ({
     return projects.filter(p => p.category.toLowerCase() === cat.toLowerCase()).length;
   };
 
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(true);
-
-  const checkScroll = () => {
-    if (scrollContainerRef.current) {
-      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
-      setCanScrollLeft(scrollLeft > 10);
-      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
-    }
-  };
-
-  const handleScroll = (direction: 'left' | 'right') => {
-    if (scrollContainerRef.current) {
-      const amount = scrollContainerRef.current.clientWidth * 0.75;
-      scrollContainerRef.current.scrollBy({
-        left: direction === 'left' ? -amount : amount,
-        behavior: 'smooth',
-      });
-    }
-  };
-
-  useEffect(() => {
-    const el = scrollContainerRef.current;
-    if (!el) return;
-
-    checkScroll();
-
-    let targetScroll = el.scrollLeft;
-    let animId: number | null = null;
-
-    const smoothStep = () => {
-      const diff = targetScroll - el.scrollLeft;
-      if (Math.abs(diff) > 0.5) {
-        el.scrollLeft += diff * 0.25;
-        checkScroll();
-        animId = requestAnimationFrame(smoothStep);
-      } else {
-        el.scrollLeft = targetScroll;
-        checkScroll();
-        animId = null;
-      }
-    };
-
-    const onScroll = () => {
-      if (!animId) {
-        targetScroll = el.scrollLeft;
-      }
-      checkScroll();
-    };
-
-    el.addEventListener('scroll', onScroll, { passive: true });
-
-    // Enable fluid damped horizontal wheel scrolling
-    const onWheel = (e: WheelEvent) => {
-      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
-        const maxScroll = el.scrollWidth - el.clientWidth;
-        if (maxScroll <= 0) return;
-
-        const isAtStart = el.scrollLeft <= 2 && e.deltaY < 0;
-        const isAtEnd = el.scrollLeft >= maxScroll - 2 && e.deltaY > 0;
-
-        if (!isAtStart && !isAtEnd) {
-          e.preventDefault();
-          if (!animId) {
-            targetScroll = el.scrollLeft;
-          }
-          targetScroll = Math.max(0, Math.min(maxScroll, targetScroll + e.deltaY * 0.95));
-          if (!animId) {
-            animId = requestAnimationFrame(smoothStep);
-          }
-        }
-      }
-    };
-
-    el.addEventListener('wheel', onWheel, { passive: false });
-
-    // Drag to scroll on desktop
-    let isDown = false;
-    let startX = 0;
-    let startScroll = 0;
-    let hasDragged = false;
-
-    const onMouseDown = (e: MouseEvent) => {
-      if (e.button !== 0) return;
-      isDown = true;
-      hasDragged = false;
-      startX = e.pageX - el.offsetLeft;
-      startScroll = el.scrollLeft;
-      targetScroll = el.scrollLeft;
-      if (animId) {
-        cancelAnimationFrame(animId);
-        animId = null;
-      }
-    };
-
-    const onWindowMouseUp = () => {
-      isDown = false;
-    };
-
-    const onMouseMove = (e: MouseEvent) => {
-      if (!isDown) return;
-      const x = e.pageX - el.offsetLeft;
-      const walk = x - startX;
-      if (Math.abs(walk) > 4) {
-        hasDragged = true;
-      }
-      el.scrollLeft = startScroll - walk;
-      targetScroll = el.scrollLeft;
-      checkScroll();
-    };
-
-    const onClickCapture = (e: MouseEvent) => {
-      if (hasDragged) {
-        e.stopPropagation();
-        e.preventDefault();
-        hasDragged = false;
-      }
-    };
-
-    el.addEventListener('mousedown', onMouseDown);
-    window.addEventListener('mouseup', onWindowMouseUp);
-    el.addEventListener('mousemove', onMouseMove);
-    el.addEventListener('click', onClickCapture, true);
-
-    return () => {
-      if (animId) cancelAnimationFrame(animId);
-      el.removeEventListener('scroll', onScroll);
-      el.removeEventListener('wheel', onWheel);
-      el.removeEventListener('mousedown', onMouseDown);
-      window.removeEventListener('mouseup', onWindowMouseUp);
-      el.removeEventListener('mousemove', onMouseMove);
-      el.removeEventListener('click', onClickCapture, true);
-    };
-  }, [filteredProjects]);
-
   const handleRequestSimilar = (project: PortfolioProject) => {
     if (onSelectService) {
       onSelectService(project.category);
@@ -311,35 +173,9 @@ export const Portfolio: React.FC<PortfolioProps> = ({
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="text-xs font-mono text-neutral-500 hidden sm:block">
+            <span className="text-xs font-mono text-neutral-500">
               Showing {filteredProjects.length} of {projects.length} works
             </span>
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => handleScroll('left')}
-                disabled={!canScrollLeft}
-                aria-label="Previous works"
-                className={`w-8 h-8 rounded-full border border-neutral-200/90 bg-white flex items-center justify-center transition-all ${
-                  canScrollLeft
-                    ? 'text-neutral-800 hover:bg-neutral-100 shadow-2xs cursor-pointer'
-                    : 'text-neutral-300 cursor-not-allowed opacity-40'
-                }`}
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => handleScroll('right')}
-                disabled={!canScrollRight}
-                aria-label="Next works"
-                className={`w-8 h-8 rounded-full border border-neutral-200/90 bg-white flex items-center justify-center transition-all ${
-                  canScrollRight
-                    ? 'text-neutral-800 hover:bg-neutral-100 shadow-2xs cursor-pointer'
-                    : 'text-neutral-300 cursor-not-allowed opacity-40'
-                }`}
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
           </div>
         </div>
 
@@ -359,174 +195,176 @@ export const Portfolio: React.FC<PortfolioProps> = ({
           </div>
         )}
 
-        {/* Empty State */}
-        {!loading && filteredProjects.length === 0 && (
-          <div className="glass-card rounded-3xl p-12 text-center max-w-xl mx-auto shadow-xs">
-            <Layers className="w-10 h-10 text-neutral-400 mx-auto mb-3" />
-            <h3 className="font-serif-display font-medium text-xl text-[#111111] mb-1">
-              {projects.length === 0 ? 'Portfolio Showcase Updating' : 'No Projects in this Category'}
-            </h3>
-            <p className="text-xs text-neutral-500 mb-6">
-              {projects.length === 0
-                ? 'Our curated works are being updated directly by the studio. Reach out below to discuss your project or request private case studies.'
-                : 'New project archives are uploaded regularly by the studio. Check another category or request a bespoke commission.'}
-            </p>
-            {projects.length > 0 && (
-              <button
-                onClick={() => setSelectedCategory('All')}
-                className="px-5 py-2.5 bg-[#111111] text-white text-xs font-semibold rounded-full hover:bg-neutral-800 transition-colors cursor-pointer"
-              >
-                Show All Works
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Projects Horizontal Reel */}
-        {!loading && filteredProjects.length > 0 && (
-          <div className="relative -mx-6 sm:-mx-10 lg:-mx-12 px-6 sm:px-10 lg:px-12">
-            {canScrollLeft && (
-              <div className="absolute left-0 top-0 bottom-6 w-12 bg-linear-to-r from-[#FAF9F5] to-transparent pointer-events-none z-10 hidden sm:block" />
-            )}
-            {canScrollRight && (
-              <div className="absolute right-0 top-0 bottom-6 w-12 bg-linear-to-l from-[#FAF9F5] to-transparent pointer-events-none z-10 hidden sm:block" />
-            )}
-
-            <div
-              ref={scrollContainerRef}
-              className="flex gap-6 sm:gap-8 overflow-x-auto pb-6 pt-2 overscroll-x-contain cursor-grab active:cursor-grabbing select-none"
-              style={{
-                scrollbarWidth: 'none',
-                msOverflowStyle: 'none',
-                WebkitOverflowScrolling: 'touch',
-              }}
-            >
-              {filteredProjects.map((project) => {
-                const hasVideo = Boolean(project.video_url);
-                const hasLive = Boolean(project.live_url);
-
-                return (
-                  <article
-                    key={project.id}
-                    className="w-[85vw] sm:w-[420px] lg:w-[460px] shrink-0 glass-card rounded-3xl overflow-hidden flex flex-col justify-between border border-white"
-                  >
-                    <div>
-                      {/* Media Container */}
-                      <div 
-                        onClick={() => setActiveProjectModal(project)}
-                        className="aspect-16/10 bg-neutral-100 relative overflow-hidden cursor-pointer"
-                      >
-                        <img
-                          src={project.cover_image_url}
-                          alt={project.title}
-                          className="w-full h-full object-cover pointer-events-none select-none"
-                          draggable={false}
-                          referrerPolicy="no-referrer"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1542744094-3a31f272c490?auto=format&fit=crop&w=1200&q=80';
-                          }}
-                        />
-
-                        {/* Top Badges */}
-                        <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none">
-                          <span className="px-3 py-1 rounded-full text-[10px] font-mono uppercase tracking-wider bg-black/75 backdrop-blur-xs text-white">
-                            {project.category}
-                          </span>
-
-                          <div className="flex items-center gap-1.5">
-                            {project.featured && (
-                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-medium bg-white text-neutral-800 flex items-center gap-1 shadow-xs">
-                                <Sparkles className="w-2.5 h-2.5" />
-                                <span>Featured</span>
-                              </span>
-                            )}
-                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono bg-black/60 backdrop-blur-xs text-white">
-                              {project.created_at ? new Date(project.created_at).getFullYear() : '2026'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Card Content */}
-                      <div className="p-6">
-                        <h3 
-                          onClick={() => setActiveProjectModal(project)}
-                          className="font-serif-display font-medium text-xl text-[#111111] hover:text-neutral-600 transition-colors cursor-pointer mb-2"
-                        >
-                          {project.title}
-                        </h3>
-
-                        <p className="text-xs text-neutral-500 line-clamp-2 leading-relaxed mb-4">
-                          {project.description}
+        {/* Portfolio Table */}
+        {!loading && (
+          <div className="glass-card rounded-3xl border border-neutral-200/80 bg-white/85 overflow-hidden shadow-xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[680px]">
+                <thead>
+                  <tr className="border-b border-neutral-200/80 bg-neutral-50/80 text-[10px] font-mono uppercase tracking-widest text-neutral-500">
+                    <th className="py-4 px-5 font-semibold w-14">#</th>
+                    <th className="py-4 px-5 font-semibold">Project</th>
+                    <th className="py-4 px-5 font-semibold">Category</th>
+                    <th className="py-4 px-5 font-semibold">Deliverables</th>
+                    <th className="py-4 px-5 font-semibold">Status</th>
+                    <th className="py-4 px-5 font-semibold text-right">Preview / Link</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-200/60 text-xs">
+                  {filteredProjects.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-16 px-6 text-center">
+                        <Layers className="w-8 h-8 text-neutral-300 mx-auto mb-3" />
+                        <p className="font-serif-display text-lg text-[#111111] mb-1">
+                          {projects.length === 0 ? 'No portfolio works added yet' : 'No projects in this category'}
                         </p>
-
-                        {project.deliverables && project.deliverables.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5">
-                            {project.deliverables.slice(0, 3).map((d, i) => (
-                              <span 
-                                key={i}
-                                className="px-2.5 py-1 rounded-md text-[10px] font-mono bg-neutral-100 text-neutral-600 border border-neutral-200/60"
-                              >
-                                {d}
-                              </span>
-                            ))}
-                            {project.deliverables.length > 3 && (
-                              <span className="px-2 py-1 rounded-md text-[10px] font-mono bg-neutral-100 text-neutral-400">
-                                +{project.deliverables.length - 3}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Card Bottom Actions */}
-                    <div className="px-6 py-4 bg-white/40 border-t border-neutral-100 flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-3">
-                        {hasLive && (
-                          <a
-                            href={project.live_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-[11px] font-mono font-medium text-neutral-800 hover:underline"
-                          >
-                            <span>Live Site</span>
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
-                        )}
-                        {hasVideo && (
+                        <p className="text-xs text-neutral-500 max-w-md mx-auto">
+                          {projects.length === 0
+                            ? 'Portfolio entries added by the studio will appear in this table.'
+                            : 'Select another category or reset the filter to view available works.'}
+                        </p>
+                        {projects.length > 0 && (
                           <button
-                            onClick={() => setActiveProjectModal(project)}
-                            className="inline-flex items-center gap-1 text-[11px] font-mono font-medium text-neutral-800 hover:underline cursor-pointer"
+                            onClick={() => setSelectedCategory('All')}
+                            className="mt-4 px-5 py-2 bg-[#111111] text-white text-xs font-semibold rounded-full hover:bg-neutral-800 transition-colors cursor-pointer"
                           >
-                            <Film className="w-3 h-3" />
-                            <span>Reel</span>
+                            Show All Works
                           </button>
                         )}
-                        {hasVideo && getInstagramEmbedUrl(project.video_url) && (
-                          <a
-                            href={project.video_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-[11px] font-mono font-medium text-neutral-600 hover:text-neutral-900 hover:underline"
-                          >
-                            <span>Instagram</span>
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
-                        )}
-                      </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredProjects.map((project, index) => {
+                      const hasVideo = Boolean(project.video_url);
+                      const hasLive = Boolean(project.live_url);
+                      const isInstagram = Boolean(getInstagramEmbedUrl(project.video_url));
 
-                      <button
-                        onClick={() => handleRequestSimilar(project)}
-                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#111111] hover:text-neutral-600 transition-colors ml-auto cursor-pointer"
-                      >
-                        <span>Inquire</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </article>
-                );
-              })}
+                      return (
+                        <tr
+                          key={project.id}
+                          className="hover:bg-neutral-50/70 transition-colors group"
+                        >
+                          <td className="py-4 px-5 font-mono text-[11px] text-neutral-400 align-middle">
+                            {String(index + 1).padStart(2, '0')}
+                          </td>
+
+                          <td className="py-4 px-5 align-middle">
+                            <div className="flex items-center gap-3.5">
+                              <button
+                                type="button"
+                                onClick={() => setActiveProjectModal(project)}
+                                className="w-16 h-11 rounded-lg overflow-hidden bg-neutral-100 border border-neutral-200/80 shrink-0 cursor-pointer"
+                              >
+                                <img
+                                  src={project.cover_image_url}
+                                  alt={project.title}
+                                  className="w-full h-full object-cover"
+                                  referrerPolicy="no-referrer"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1542744094-3a31f272c490?auto=format&fit=crop&w=1200&q=80';
+                                  }}
+                                />
+                              </button>
+                              <div className="min-w-0 max-w-xs">
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveProjectModal(project)}
+                                  className="font-serif-display font-medium text-base text-[#111111] hover:text-neutral-600 transition-colors text-left cursor-pointer truncate block max-w-full"
+                                >
+                                  {project.title}
+                                </button>
+                                <p className="text-[11px] text-neutral-500 line-clamp-1">
+                                  {project.description}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td className="py-4 px-5 align-middle">
+                            <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-mono uppercase tracking-wider bg-neutral-100 text-[#111111] border border-neutral-200/70 whitespace-nowrap">
+                              {project.category}
+                            </span>
+                          </td>
+
+                          <td className="py-4 px-5 align-middle">
+                            <div className="flex flex-wrap gap-1 max-w-[220px]">
+                              {project.deliverables && project.deliverables.length > 0 ? (
+                                <>
+                                  {project.deliverables.slice(0, 2).map((d, i) => (
+                                    <span
+                                      key={i}
+                                      className="px-2 py-0.5 rounded text-[10px] font-mono bg-neutral-100 text-neutral-600 border border-neutral-200/60"
+                                    >
+                                      {d}
+                                    </span>
+                                  ))}
+                                  {project.deliverables.length > 2 && (
+                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-mono text-neutral-400">
+                                      +{project.deliverables.length - 2}
+                                    </span>
+                                  )}
+                                </>
+                              ) : (
+                                <span className="text-[11px] text-neutral-400 font-mono">—</span>
+                              )}
+                            </div>
+                          </td>
+
+                          <td className="py-4 px-5 align-middle">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono bg-white border border-neutral-200 text-neutral-700 whitespace-nowrap">
+                              {project.featured && <Sparkles className="w-2.5 h-2.5 text-[#111111]" />}
+                              <span>{project.project_status}</span>
+                            </span>
+                          </td>
+
+                          <td className="py-4 px-5 align-middle text-right">
+                            <div className="inline-flex items-center justify-end gap-3">
+                              <button
+                                type="button"
+                                onClick={() => setActiveProjectModal(project)}
+                                className="inline-flex items-center gap-1 text-[11px] font-mono font-medium text-[#111111] hover:underline cursor-pointer"
+                              >
+                                {hasVideo && <Film className="w-3 h-3" />}
+                                <span>{hasVideo ? 'Reel' : 'View'}</span>
+                              </button>
+                              {hasVideo && isInstagram && (
+                                <a
+                                  href={project.video_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-[11px] font-mono font-medium text-neutral-600 hover:text-[#111111] hover:underline"
+                                >
+                                  <span>Instagram</span>
+                                  <ExternalLink className="w-3 h-3" />
+                                </a>
+                              )}
+                              {hasLive && (
+                                <a
+                                  href={project.live_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-[11px] font-mono font-medium text-neutral-600 hover:text-[#111111] hover:underline"
+                                >
+                                  <span>Live</span>
+                                  <ExternalLink className="w-3 h-3" />
+                                </a>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleRequestSimilar(project)}
+                                className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-[#111111] text-white text-[10px] font-semibold hover:bg-neutral-800 transition-colors cursor-pointer"
+                              >
+                                <span>Inquire</span>
+                                <ArrowRight className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
