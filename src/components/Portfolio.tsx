@@ -240,6 +240,14 @@ export const Portfolio: React.FC<PortfolioProps> = ({
     setActiveProjectModal(null);
   };
 
+  const getInstagramEmbedUrl = (url?: string): string | null => {
+    if (!url) return null;
+    const match = url.match(/instagram\.com\/(reel|reels|p|tv)\/([A-Za-z0-9_-]+)/i);
+    if (!match) return null;
+    const kind = match[1].toLowerCase() === 'reels' ? 'reel' : match[1].toLowerCase();
+    return `https://www.instagram.com/${kind}/${match[2]}/embed/`;
+  };
+
   return (
     <section id="projects" className="py-24 sm:py-32 bg-[#FAF9F5] border-t border-black/[0.04] relative overflow-hidden">
       <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-12">
@@ -495,6 +503,17 @@ export const Portfolio: React.FC<PortfolioProps> = ({
                             <span>Reel</span>
                           </button>
                         )}
+                        {hasVideo && getInstagramEmbedUrl(project.video_url) && (
+                          <a
+                            href={project.video_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] font-mono font-medium text-neutral-600 hover:text-neutral-900 hover:underline"
+                          >
+                            <span>Instagram</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
                       </div>
 
                       <button
@@ -562,26 +581,46 @@ export const Portfolio: React.FC<PortfolioProps> = ({
 
             {/* Modal Body */}
             <div className="max-h-[80vh] overflow-y-auto p-6 sm:p-8 space-y-6">
-              <div className="aspect-16/9 rounded-2xl overflow-hidden bg-neutral-900 relative">
-                {activeProjectModal.video_url ? (
-                  <video
-                    src={activeProjectModal.video_url}
-                    controls
-                    autoPlay
-                    playsInline
-                    className="w-full h-full object-contain"
-                  >
-                    Your browser does not support video playback.
-                  </video>
-                ) : (
-                  <img
-                    src={activeProjectModal.cover_image_url}
-                    alt={activeProjectModal.title}
-                    className="w-full h-full object-cover"
-                    referrerPolicy="no-referrer"
-                  />
-                )}
-              </div>
+              {(() => {
+                const igEmbedUrl = getInstagramEmbedUrl(activeProjectModal.video_url);
+                if (igEmbedUrl) {
+                  return (
+                    <div className="rounded-2xl overflow-hidden bg-neutral-950 border border-neutral-200 flex items-center justify-center">
+                      <iframe
+                        src={igEmbedUrl}
+                        title={activeProjectModal.title}
+                        className="w-full max-w-[420px] h-[520px] bg-white"
+                        frameBorder="0"
+                        scrolling="no"
+                        allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+                        allowFullScreen
+                      />
+                    </div>
+                  );
+                }
+                return (
+                  <div className="aspect-16/9 rounded-2xl overflow-hidden bg-neutral-900 relative">
+                    {activeProjectModal.video_url ? (
+                      <video
+                        src={activeProjectModal.video_url}
+                        controls
+                        autoPlay
+                        playsInline
+                        className="w-full h-full object-contain"
+                      >
+                        Your browser does not support video playback.
+                      </video>
+                    ) : (
+                      <img
+                        src={activeProjectModal.cover_image_url}
+                        alt={activeProjectModal.title}
+                        className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                    )}
+                  </div>
+                );
+              })()}
 
               <div>
                 <h3 className="font-serif-display font-medium text-2xl sm:text-3xl text-[#111111] mb-3">
@@ -618,6 +657,17 @@ export const Portfolio: React.FC<PortfolioProps> = ({
                       className="inline-flex items-center gap-2 px-4 py-2 bg-neutral-100 hover:bg-neutral-200 text-[#111111] rounded-full text-xs font-semibold transition-colors cursor-pointer"
                     >
                       <span>Visit Live Website</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  )}
+                  {activeProjectModal.video_url && getInstagramEmbedUrl(activeProjectModal.video_url) && (
+                    <a
+                      href={activeProjectModal.video_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-neutral-100 hover:bg-neutral-200 text-[#111111] rounded-full text-xs font-semibold transition-colors cursor-pointer"
+                    >
+                      <span>Watch Reel on Instagram</span>
                       <ExternalLink className="w-3.5 h-3.5" />
                     </a>
                   )}

@@ -100,7 +100,22 @@ const INITIAL_SETTINGS: AgencySettings = {
   vaibhav_whatsapp: '917016451067',
 };
 
-const SEED_PROJECTS: PortfolioProject[] = [];
+const SEED_PROJECTS: PortfolioProject[] = [
+  {
+    id: 'proj-motion-reel-1',
+    title: 'Seven Schedule Motion Reel',
+    category: 'Motion Graphics',
+    description: 'Kinetic 3D motion graphics showcase featuring dynamic visual choreography, rhythmic pacing, and studio-grade animation.',
+    cover_image_url: '/assets/motion-reel-cover.jpg',
+    video_url: 'https://www.instagram.com/reel/DfzI4LDNh-Y/?utm_source=ig_web_button_share_sheet&exln=MzRlODBiNWFlZA==',
+    project_status: 'Completed',
+    featured: true,
+    deliverables: ['Motion Graphics Reel', 'Kinetic Direction', 'Audio-Synced Editing'],
+    is_demo: false,
+    created_at: '2026-11-16T03:50:00.000Z',
+    updated_at: '2026-11-16T03:50:00.000Z',
+  },
+];
 
 const SEED_REQUESTS: ProjectRequest[] = [
   {

@@ -1387,6 +1387,17 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                         </div>
 
                         <div>
+                          <label className="block font-semibold uppercase text-[#111111] mb-1">Video / Instagram Reel URL (Optional)</label>
+                          <input
+                            type="url"
+                            value={projectForm.video_url}
+                            onChange={(e) => setProjectForm({ ...projectForm, video_url: e.target.value })}
+                            placeholder="https://www.instagram.com/reel/... or .mp4 URL"
+                            className="w-full bg-[#F5F5F5] border border-[#E5E5E5] rounded p-2 text-xs focus:bg-white"
+                          />
+                        </div>
+
+                        <div>
                           <label className="block font-semibold uppercase text-[#111111] mb-1">Live Website URL (Optional)</label>
                           <input
                             type="url"
